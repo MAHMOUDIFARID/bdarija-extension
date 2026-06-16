@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# WXT outputs
+.wxt/
+.output/
+
+# Build outputs
+dist/
+build/
+
+# Local configuration / secrets
+.env
+.env.local
+.env.*.local
+*.log
+
+# Editor / System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

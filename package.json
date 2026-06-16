@@ -1,0 +1,25 @@
+{
+  "name": "bdarija-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Browser extension that translates webpages into Moroccan Darija with BYOK AI providers.",
+  "workspaces": [
+    "api",
+    "extension"
+  ],
+  "scripts": {
+    "dev:extension": "npm run dev --workspace=extension",
+    "dev:api": "npm run dev --workspace=api",
+    "build:extension": "npm run build --workspace=extension",
+    "build:api": "npm run build --workspace=api"
+  },
+  "keywords": [
+    "darija",
+    "moroccan-arabic",
+    "browser-extension",
+    "translation",
+    "byok"
+  ],
+  "author": "",
+  "license": "MIT"
+}
