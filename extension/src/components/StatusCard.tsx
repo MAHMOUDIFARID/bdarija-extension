@@ -18,6 +18,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
   errorMessage
 }) => {
   const isTranslating = status === 'translating';
+  const hasPartialMessage = status === 'translated' && Boolean(errorMessage);
   const statusLabel: Record<TranslationStatus, string> = {
     'setup-required': 'Setup required',
     ready: 'Ready',
@@ -71,6 +72,16 @@ export const StatusCard: React.FC<StatusCardProps> = ({
             Translation Failed
           </div>
           <p className="opacity-90 leading-normal">{errorMessage || 'An error occurred during translation.'}</p>
+        </div>
+      )}
+
+      {hasPartialMessage && (
+        <div className="p-4 bg-amber-950/20 border border-amber-900/40 text-amber-200 rounded-[20px] text-[10px] leading-relaxed shadow-lg shadow-black/5 select-none animate-fadeIn">
+          <div className="font-bold mb-0.5 flex items-center gap-1.5 text-white">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            Partial Progress Saved
+          </div>
+          <p className="opacity-90 leading-normal">{errorMessage}</p>
         </div>
       )}
     </div>

@@ -74,6 +74,16 @@ function shouldSkipNode(node: Text): boolean {
   // Skip very short fragments that don't have enough meaning (e.g., single symbols)
   if (trimmed.length < 2 && !/[a-zA-Z]/.test(trimmed)) return true;
 
+  // Skip compact code-like tokens that usually do not benefit from translation.
+  if (
+    trimmed.length <= 24 &&
+    !/\s/.test(trimmed) &&
+    /[_{}[\]().:=/\\-]/.test(trimmed) &&
+    !/[.!?]$/.test(trimmed)
+  ) {
+    return true;
+  }
+
   return false;
 }
 
@@ -111,7 +121,7 @@ function getScannedCandidates(): TextCandidate[] {
   let currentNode = walker.nextNode();
   while (currentNode) {
     const textNode = currentNode as Text;
-    const text = textNode.nodeValue || '';
+    const text = originalTextsMap.get(textNode) || textNode.nodeValue || '';
     const normalized = normalizeForDeduplication(text);
 
     if (!seenTexts.has(normalized)) {

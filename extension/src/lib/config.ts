@@ -6,14 +6,40 @@ export const CONFIG = {
   // Timeout for API requests in milliseconds (e.g. 30 seconds)
   apiTimeoutMs: 90000,
 
-  // Chunking parameters
-  chunkSize: 1,           // Translate one visible text node at a time
-  chunkCharLimit: 500,    // Maximum cumulative character count per translate API call
-  requestDelayMs: 1500,   // Delay between line-by-line provider requests
-  rateLimitDelayMs: 8000, // Extra wait before retrying a rate-limited line
+  // Default queue pacing. Providers can override these values below.
+  chunkSize: 1,
+  chunkCharLimit: 500,
+  requestDelayMs: 1500,
+  rateLimitDelayMs: 8000,
+  maxRetryAttempts: 1,
+
+  // Gemini free keys need slower line-by-line translation to avoid burning RPM/TPM.
+  providerPacing: {
+    gemini: {
+      chunkSize: 1,
+      chunkCharLimit: 450,
+      requestDelayMs: 3500,
+      rateLimitDelayMs: 65000,
+      maxRetryAttempts: 2,
+    },
+    groq: {
+      chunkSize: 1,
+      chunkCharLimit: 500,
+      requestDelayMs: 1800,
+      rateLimitDelayMs: 12000,
+      maxRetryAttempts: 1,
+    },
+    'agent-router': {
+      chunkSize: 1,
+      chunkCharLimit: 700,
+      requestDelayMs: 1200,
+      rateLimitDelayMs: 10000,
+      maxRetryAttempts: 1,
+    },
+  },
 
   // Page scanning limits. Large pages can contain thousands of DOM text nodes,
   // so scan first and translate the most useful visible text.
-  scanMaxNodes: 180,
-  scanMaxChars: 12000,
+  scanMaxNodes: 220,
+  scanMaxChars: 16000,
 };

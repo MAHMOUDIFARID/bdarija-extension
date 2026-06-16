@@ -42,12 +42,21 @@ export async function translateWithGemini(
     }
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(30000)
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(30000)
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown network error';
+    if (/timeout|aborted/i.test(message)) {
+      throw new AITranslationError('Gemini request timed out.', 'provider-timeout');
+    }
+    throw new AITranslationError('Could not reach Gemini. Check your internet connection.', 'provider-error');
+  }
 
   if (!response.ok) {
     const status = response.status;
@@ -57,6 +66,9 @@ export async function translateWithGemini(
     }
     if (status === 429) {
       throw new AITranslationError('The selected provider is rate-limited. Try again later or use another provider.', 'rate-limited');
+    }
+    if (status === 503 || status >= 500) {
+      throw new AITranslationError('Gemini service is temporarily unavailable.', 'provider-error');
     }
     throw new AITranslationError(`Gemini request failed with status ${status}.`);
   }
