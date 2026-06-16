@@ -6,6 +6,16 @@ export interface TranslationItem {
   text: string;
 }
 
+export type SelectionTranslationStatus = 'loading' | 'success' | 'error';
+
+export interface SelectionTranslationPayload {
+  status: SelectionTranslationStatus;
+  originalText: string;
+  translatedText?: string;
+  errorMessage?: string;
+  mode: TranslationMode;
+}
+
 export type TranslationStatus =
   | 'setup-required'
   | 'ready'
@@ -34,7 +44,8 @@ export type MessageType =
   | 'RESTORE_ORIGINAL'
   | 'EXTRACT_TEXT'
   | 'APPLY_TRANSLATION'
-  | 'RESTORE_DOM';
+  | 'RESTORE_DOM'
+  | 'SHOW_SELECTION_TRANSLATION';
 
 export interface ExtensionMessage<T = any> {
   type: MessageType;

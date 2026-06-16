@@ -1,18 +1,52 @@
-﻿import { CONFIG } from '../src/lib/config.js';
-import { getBatchCachedTranslations, setBatchCachedTranslations } from '../src/lib/cache.js';
+import { CONFIG } from '../src/lib/config.js';
+import {
+  getBatchCachedTranslations,
+  getCachedTranslation,
+  setBatchCachedTranslations,
+  setCachedTranslation
+} from '../src/lib/cache.js';
 import { chunkTranslationItems } from '../src/lib/chunking.js';
 import { sendToTab } from '../src/lib/messaging.js';
-import { ExtensionMessage, TranslationItem, TabState, TranslationMode } from '../src/lib/types.js';
+import {
+  ExtensionMessage,
+  SelectionTranslationPayload,
+  TranslationItem,
+  TabState,
+  TranslationMode
+} from '../src/lib/types.js';
 import { getUserAIConfig } from '../src/lib/userConfig.js';
 import { translateItems as translateItemsWithApi } from '../src/lib/api.js';
+
+const SELECTION_MAX_CHARS = 3000;
 
 export default defineBackground(() => {
   console.log('[Bdarija] Background service worker active');
 
-  // Concurrency guard to prevent parallel runs on the same tab
   const activeTranslations = new Set<number>();
+  const selectionMenuItems = [
+    {
+      id: 'bdarija-translate-selection-arabizi',
+      title: 'Translate selection to Darija Arabizi',
+      mode: 'arabizi' as TranslationMode
+    },
+    {
+      id: 'bdarija-translate-selection-arabic',
+      title: 'Translate selection to Darija Arabic script',
+      mode: 'arabic' as TranslationMode
+    }
+  ];
 
-  // Handle messages from the Popup
+  setupContextMenus();
+
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    const item = selectionMenuItems.find((menuItem) => menuItem.id === info.menuItemId);
+    if (!item || !tab?.id) return;
+
+    handleSelectionTranslation(tab.id, info.selectionText || '', item.mode).catch((error) => {
+      console.error('[Bdarija] Selection translation error:', error);
+    });
+  });
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { type, payload } = message;
 
@@ -21,19 +55,18 @@ export default defineBackground(() => {
       handleTranslationStart(mode)
         .then(() => sendResponse({ success: true }))
         .catch((err) => sendResponse({ error: err.message }));
-      return true; // Keep channel open for async response
+      return true;
     }
 
-    else if (type === 'RESTORE_ORIGINAL') {
+    if (type === 'RESTORE_ORIGINAL') {
       handleRestoreOriginal()
         .then(() => sendResponse({ success: true }))
         .catch((err) => sendResponse({ error: err.message }));
-      return true; // Keep channel open for async response
+      return true;
     }
   });
 
-  // Listen for tab changes/updates to reset states if appropriate
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status === 'loading') {
       const stateKey = `tab_state:${tabId}`;
       chrome.storage.local.remove(stateKey);
@@ -46,6 +79,18 @@ export default defineBackground(() => {
     chrome.storage.local.remove(stateKey);
     activeTranslations.delete(tabId);
   });
+
+  function setupContextMenus(): void {
+    chrome.contextMenus.removeAll(() => {
+      for (const item of selectionMenuItems) {
+        chrome.contextMenus.create({
+          id: item.id,
+          title: item.title,
+          contexts: ['selection'],
+        });
+      }
+    });
+  }
 
   async function sendToContentScript<R>(
     tabId: number,
@@ -76,6 +121,91 @@ export default defineBackground(() => {
     return /rate-limited|rate limit|429/i.test((error as Error).message || '');
   }
 
+  async function showSelectionResult(
+    tabId: number,
+    payload: SelectionTranslationPayload
+  ): Promise<void> {
+    const response = await sendToContentScript<{ success?: boolean; error?: string }>(tabId, {
+      type: 'SHOW_SELECTION_TRANSLATION',
+      payload,
+    });
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+  }
+
+  async function handleSelectionTranslation(
+    tabId: number,
+    selectionText: string,
+    mode: TranslationMode
+  ): Promise<void> {
+    const originalText = selectionText.replace(/\s+/g, ' ').trim();
+    if (!originalText) return;
+
+    if (originalText.length > SELECTION_MAX_CHARS) {
+      await showSelectionResult(tabId, {
+        status: 'error',
+        originalText,
+        errorMessage: 'Selected text is too long. Select a shorter passage and try again.',
+        mode,
+      });
+      return;
+    }
+
+    await showSelectionResult(tabId, {
+      status: 'loading',
+      originalText,
+      mode,
+    });
+
+    try {
+      const aiConfig = await getUserAIConfig();
+      if (!aiConfig) {
+        throw new Error('Add an API key before translating.');
+      }
+
+      const cached = await getCachedTranslation(originalText, mode, aiConfig);
+      if (cached) {
+        await showSelectionResult(tabId, {
+          status: 'success',
+          originalText,
+          translatedText: cached,
+          mode,
+        });
+        return;
+      }
+
+      const [translation] = await translateItemsWithApi(
+        [{ id: 'selection', text: originalText }],
+        mode,
+        aiConfig
+      );
+      const translatedText = translation?.text?.trim();
+      if (!translatedText) {
+        throw new Error('Translation failed. Please try again.');
+      }
+
+      if (translatedText !== originalText) {
+        await setCachedTranslation(originalText, mode, translatedText, aiConfig);
+      }
+
+      await showSelectionResult(tabId, {
+        status: 'success',
+        originalText,
+        translatedText,
+        mode,
+      });
+    } catch (error) {
+      await showSelectionResult(tabId, {
+        status: 'error',
+        originalText,
+        errorMessage: (error as Error).message || 'Selection translation failed.',
+        mode,
+      });
+    }
+  }
+
   async function applyTranslatedItems(
     tabId: number,
     stateKey: string,
@@ -100,9 +230,6 @@ export default defineBackground(() => {
     return nextCount;
   }
 
-  /**
-   * Orchestrates the full page translation flow.
-   */
   async function handleTranslationStart(mode: TranslationMode): Promise<void> {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const tabId = tab?.id;
@@ -225,7 +352,6 @@ export default defineBackground(() => {
 
       const finalState: TabState = { status: 'translated', translatedCount, mode };
       await chrome.storage.local.set({ [stateKey]: finalState });
-
     } catch (error) {
       console.error('[Bdarija] Background translation error:', error);
       let errorMessage = (error as Error).message;
@@ -244,9 +370,6 @@ export default defineBackground(() => {
     }
   }
 
-  /**
-   * Handles requesting the DOM to restore its original state.
-   */
   async function handleRestoreOriginal(): Promise<void> {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const tabId = tab?.id;

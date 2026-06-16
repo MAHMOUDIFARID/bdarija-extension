@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'Bdarija',
     description: 'Translate any webpage into Moroccan Darija.',
     version: '1.0.0',
-    permissions: ['storage', 'activeTab', 'scripting'],
+    permissions: ['storage', 'activeTab', 'scripting', 'contextMenus'],
     host_permissions: ['http://localhost/*'],
     icons: {
       '16': 'logo.png',

@@ -1,13 +1,13 @@
-﻿import { extractTextNodes, applyTranslations, restoreOriginalText } from '../src/lib/dom.js';
+import { extractTextNodes, applyTranslations, restoreOriginalText } from '../src/lib/dom.js';
+import { installSelectionPopup, showSelectionTranslation } from '../src/lib/selectionPopup.js';
 
 export default defineContentScript({
-  // Matches all HTTP/HTTPS pages
   matches: ['http://*/*', 'https://*/*'],
 
-  main(ctx) {
+  main() {
     console.log('[Bdarija] Content script active');
+    installSelectionPopup();
 
-    // Register runtime messaging listener
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { type, payload } = message;
 
@@ -19,9 +19,7 @@ export default defineContentScript({
           console.error('[Bdarija] Extraction failed:', error);
           sendResponse({ error: (error as Error).message });
         }
-      }
-
-      else if (type === 'APPLY_TRANSLATION') {
+      } else if (type === 'APPLY_TRANSLATION') {
         try {
           const count = applyTranslations(payload || []);
           sendResponse({ count });
@@ -29,9 +27,7 @@ export default defineContentScript({
           console.error('[Bdarija] Applying translation failed:', error);
           sendResponse({ error: (error as Error).message });
         }
-      }
-
-      else if (type === 'RESTORE_DOM') {
+      } else if (type === 'RESTORE_DOM') {
         try {
           const success = restoreOriginalText();
           sendResponse({ success });
@@ -39,9 +35,16 @@ export default defineContentScript({
           console.error('[Bdarija] Restoring original text failed:', error);
           sendResponse({ error: (error as Error).message });
         }
+      } else if (type === 'SHOW_SELECTION_TRANSLATION') {
+        try {
+          showSelectionTranslation(payload);
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[Bdarija] Showing selection translation failed:', error);
+          sendResponse({ error: (error as Error).message });
+        }
       }
 
-      // Return true to indicate asynchronous response handling
       return true;
     });
   }

@@ -43,6 +43,7 @@ Bdarija is built for quick personal translation experiments without committing s
 | Privacy | BYOK config stored locally in `chrome.storage.local` |
 | Cache | Provider, model, mode, and source text are included in cache keys |
 | Recovery | Restore original page text after translation |
+| Selection tools | Right-click selected text to translate, copy, or replace |
 
 ## How It Works
 
@@ -97,6 +98,17 @@ extension/.output/chrome-mv3
 7. Open a webpage and click **Scan & Translate**.
 
 Your key is stored locally in the browser and is only sent to the local backend for translation requests.
+
+## Selected Text Translation
+
+You can translate a specific sentence or paragraph without scanning the whole page.
+
+1. Select text on any webpage.
+2. Right-click the selection.
+3. Choose **Translate selection to Darija Arabizi** or **Translate selection to Darija Arabic script**.
+4. Use the floating result panel to copy the translation, replace the selected text, or close the panel.
+
+Selected text translation uses the same provider config and cache as full-page translation.
 
 ## Agent Router
 
