@@ -2,6 +2,18 @@ import { SelectionTranslationPayload } from './types.js';
 
 let savedRange: Range | null = null;
 let popupHost: HTMLDivElement | null = null;
+let manropeFontInstalled = false;
+
+function installManropeFont(): void {
+  if (manropeFontInstalled || document.getElementById('bdarija-manrope-font')) return;
+
+  const link = document.createElement('link');
+  link.id = 'bdarija-manrope-font';
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap';
+  document.head.appendChild(link);
+  manropeFontInstalled = true;
+}
 
 function getSelectionRange(): Range | null {
   const selection = window.getSelection();
@@ -38,16 +50,32 @@ function createButton(label: string, variant: 'primary' | 'secondary' = 'seconda
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = label;
-  button.style.border = '1px solid rgba(255,255,255,0.14)';
-  button.style.borderRadius = '10px';
-  button.style.padding = '8px 10px';
-  button.style.fontSize = '12px';
-  button.style.fontWeight = '700';
+  button.style.border = variant === 'primary'
+    ? '1px solid rgba(20,184,166,0.55)'
+    : '1px solid rgba(148,163,184,0.24)';
+  button.style.borderRadius = '12px';
+  button.style.padding = '9px 14px';
+  button.style.fontFamily = 'Manrope, Inter, ui-sans-serif, system-ui, sans-serif';
+  button.style.fontSize = '12.5px';
+  button.style.fontWeight = '800';
   button.style.cursor = 'pointer';
-  button.style.color = variant === 'primary' ? '#06110d' : '#f8fafc';
+  button.style.color = variant === 'primary' ? '#06201c' : '#e5e7eb';
   button.style.background = variant === 'primary'
-    ? 'linear-gradient(135deg, #34d399, #67e8f9)'
-    : 'rgba(255,255,255,0.08)';
+    ? 'linear-gradient(135deg, #5eead4, #2dd4bf)'
+    : 'rgba(15,23,42,0.72)';
+  button.style.boxShadow = variant === 'primary'
+    ? '0 10px 22px rgba(20,184,166,0.22)'
+    : 'inset 0 1px 0 rgba(255,255,255,0.06)';
+  button.style.transition = 'transform 140ms ease, border-color 140ms ease, background 140ms ease';
+  button.style.userSelect = 'none';
+  button.addEventListener('mouseenter', () => {
+    button.style.transform = 'translateY(-1px)';
+    button.style.borderColor = variant === 'primary' ? 'rgba(94,234,212,0.9)' : 'rgba(203,213,225,0.36)';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.transform = 'translateY(0)';
+    button.style.borderColor = variant === 'primary' ? 'rgba(20,184,166,0.55)' : 'rgba(148,163,184,0.24)';
+  });
   return button;
 }
 
@@ -86,66 +114,123 @@ async function copyText(text: string): Promise<void> {
 }
 
 function buildPopup(payload: SelectionTranslationPayload): HTMLDivElement {
+  installManropeFont();
+
   const host = document.createElement('div');
   host.id = 'bdarija-selection-translation';
   host.style.position = 'fixed';
   host.style.zIndex = '2147483647';
-  host.style.width = 'min(360px, calc(100vw - 24px))';
-  host.style.fontFamily = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  host.style.width = 'min(390px, calc(100vw - 24px))';
+  host.style.fontFamily = 'Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   host.style.color = '#f8fafc';
+  host.style.userSelect = 'none';
 
   const rect = getAnchorRect();
-  const width = Math.min(360, window.innerWidth - 24);
-  const top = clamp(rect.bottom + 12, 12, window.innerHeight - 220);
+  const width = Math.min(390, window.innerWidth - 24);
+  const top = clamp(rect.bottom + 12, 12, window.innerHeight - 240);
   const left = clamp(rect.left + rect.width / 2 - width / 2, 12, window.innerWidth - width - 12);
   host.style.top = `${top}px`;
   host.style.left = `${left}px`;
 
   const card = document.createElement('div');
-  card.style.background = 'linear-gradient(160deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98))';
-  card.style.border = '1px solid rgba(148,163,184,0.24)';
-  card.style.boxShadow = '0 18px 48px rgba(2,6,23,0.38)';
-  card.style.borderRadius = '14px';
-  card.style.padding = '14px';
+  card.style.position = 'relative';
+  card.style.overflow = 'hidden';
+  card.style.background = 'linear-gradient(160deg, rgba(12,18,32,0.985), rgba(3,7,18,0.985))';
+  card.style.border = '1px solid rgba(148,163,184,0.20)';
+  card.style.boxShadow = '0 22px 60px rgba(2,6,23,0.46), inset 0 1px 0 rgba(255,255,255,0.06)';
+  card.style.borderRadius = '18px';
+  card.style.padding = '16px';
   card.style.backdropFilter = 'blur(16px)';
 
+  const accent = document.createElement('div');
+  accent.style.position = 'absolute';
+  accent.style.inset = '0';
+  accent.style.pointerEvents = 'none';
+  accent.style.background = 'radial-gradient(circle at 20% 0%, rgba(45,212,191,0.18), transparent 32%), radial-gradient(circle at 100% 30%, rgba(56,189,248,0.12), transparent 28%)';
+  card.append(accent);
+
   const header = document.createElement('div');
+  header.style.position = 'relative';
   header.style.display = 'flex';
   header.style.alignItems = 'center';
   header.style.justifyContent = 'space-between';
   header.style.gap = '12px';
 
+  const brand = document.createElement('div');
+  brand.style.display = 'flex';
+  brand.style.alignItems = 'center';
+  brand.style.gap = '9px';
+
+  const mark = document.createElement('div');
+  mark.textContent = 'B';
+  mark.style.width = '26px';
+  mark.style.height = '26px';
+  mark.style.display = 'grid';
+  mark.style.placeItems = 'center';
+  mark.style.borderRadius = '9px';
+  mark.style.background = 'linear-gradient(135deg, #5eead4, #38bdf8)';
+  mark.style.color = '#04111d';
+  mark.style.fontSize = '14px';
+  mark.style.fontWeight = '900';
+  mark.style.boxShadow = '0 10px 20px rgba(20,184,166,0.20)';
+
+  const titleWrap = document.createElement('div');
+  titleWrap.style.display = 'flex';
+  titleWrap.style.flexDirection = 'column';
+  titleWrap.style.gap = '1px';
+
   const title = document.createElement('div');
   title.textContent = payload.status === 'loading' ? 'Translating selection' : 'Bdarija selection';
-  title.style.fontSize = '13px';
-  title.style.fontWeight = '800';
+  title.style.fontSize = '13.5px';
+  title.style.fontWeight = '900';
   title.style.letterSpacing = '0';
+  title.style.color = '#f8fafc';
+
+  const subtitle = document.createElement('div');
+  subtitle.textContent = payload.mode === 'arabizi' ? 'Arabizi mode' : 'Arabic script mode';
+  subtitle.style.fontSize = '10.5px';
+  subtitle.style.fontWeight = '800';
+  subtitle.style.color = '#94a3b8';
+
+  titleWrap.append(title, subtitle);
+  brand.append(mark, titleWrap);
 
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
   closeButton.textContent = 'Close';
-  closeButton.style.border = '0';
-  closeButton.style.background = 'transparent';
-  closeButton.style.color = 'rgba(248,250,252,0.62)';
-  closeButton.style.fontSize = '12px';
-  closeButton.style.fontWeight = '700';
+  closeButton.style.border = '1px solid rgba(148,163,184,0.18)';
+  closeButton.style.borderRadius = '999px';
+  closeButton.style.background = 'rgba(15,23,42,0.58)';
+  closeButton.style.color = 'rgba(226,232,240,0.72)';
+  closeButton.style.padding = '6px 10px';
+  closeButton.style.fontFamily = 'Manrope, Inter, ui-sans-serif, system-ui, sans-serif';
+  closeButton.style.fontSize = '11.5px';
+  closeButton.style.fontWeight = '800';
   closeButton.style.cursor = 'pointer';
+  closeButton.style.userSelect = 'none';
   closeButton.addEventListener('click', closePopup);
 
-  header.append(title, closeButton);
+  header.append(brand, closeButton);
 
   const body = document.createElement('div');
-  body.style.marginTop = '10px';
-  body.style.fontSize = '13px';
-  body.style.lineHeight = '1.55';
+  body.style.position = 'relative';
+  body.style.marginTop = '14px';
+  body.style.fontSize = '14px';
+  body.style.fontWeight = '650';
+  body.style.lineHeight = '1.62';
   body.style.whiteSpace = 'pre-wrap';
   body.style.overflowWrap = 'anywhere';
   body.style.maxHeight = '180px';
   body.style.overflowY = 'auto';
+  body.style.padding = '12px';
+  body.style.borderRadius = '14px';
+  body.style.background = 'rgba(15,23,42,0.42)';
+  body.style.border = '1px solid rgba(148,163,184,0.14)';
+  body.style.userSelect = 'text';
 
   if (payload.status === 'loading') {
-    body.textContent = 'Please wait while Bdarija translates the selected text.';
-    body.style.color = 'rgba(248,250,252,0.72)';
+    body.textContent = 'Translating the selected text...';
+    body.style.color = 'rgba(226,232,240,0.72)';
   } else if (payload.status === 'error') {
     body.textContent = payload.errorMessage || 'Selection translation failed.';
     body.style.color = '#fca5a5';
@@ -155,16 +240,18 @@ function buildPopup(payload: SelectionTranslationPayload): HTMLDivElement {
   }
 
   const meta = document.createElement('div');
-  meta.textContent = payload.mode === 'arabizi' ? 'Arabizi mode' : 'Arabic script mode';
+  meta.textContent = payload.status === 'success' ? 'Ready to copy or replace' : 'Bdarija uses your saved provider config';
+  meta.style.position = 'relative';
   meta.style.marginTop = '10px';
   meta.style.fontSize = '11px';
-  meta.style.fontWeight = '700';
-  meta.style.color = 'rgba(148,163,184,0.86)';
+  meta.style.fontWeight = '800';
+  meta.style.color = 'rgba(148,163,184,0.82)';
 
   const actions = document.createElement('div');
+  actions.style.position = 'relative';
   actions.style.display = 'flex';
   actions.style.gap = '8px';
-  actions.style.marginTop = '12px';
+  actions.style.marginTop = '14px';
 
   if (payload.status === 'success' && payload.translatedText) {
     const copyButton = createButton('Copy');
@@ -187,6 +274,20 @@ function buildPopup(payload: SelectionTranslationPayload): HTMLDivElement {
     card.append(actions);
   }
   host.append(card);
+
+  requestAnimationFrame(() => {
+    card.animate(
+      [
+        { opacity: 0, transform: 'translateY(6px) scale(0.985)' },
+        { opacity: 1, transform: 'translateY(0) scale(1)' }
+      ],
+      {
+        duration: 160,
+        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+      }
+    );
+  });
+
   return host;
 }
 
