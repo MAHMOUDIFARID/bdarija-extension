@@ -10,7 +10,7 @@ export const TranslateRequestSchema = z.object({
   mode: z.enum(['arabizi', 'arabic'])
 });
 
-export const AIProviderSchema = z.enum(['gemini', 'groq', 'agent-router']);
+export const AIProviderSchema = z.enum(['gemini', 'groq', 'agent-router', 'openai']);
 
 export const ProviderTestRequestSchema = z.object({
   provider: AIProviderSchema,

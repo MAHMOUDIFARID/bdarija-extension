@@ -4,13 +4,16 @@ import { testProviderConnection } from '../services/aiTranslator.js';
 import { DEFAULT_AGENT_ROUTER_MODEL } from '../services/agentRouterTranslator.js';
 import { DEFAULT_GEMINI_MODEL } from '../services/geminiTranslator.js';
 import { DEFAULT_GROQ_MODEL } from '../services/groqTranslator.js';
+import { DEFAULT_OPENAI_MODEL } from '../services/openAITranslator.js';
 import { getFriendlyProviderError } from '../services/providerUtils.js';
+import { AIProvider } from '../lib/validation.js';
 
 export const providersRouter = new Hono();
 
-function getDefaultModel(provider: 'gemini' | 'groq' | 'agent-router'): string {
+function getDefaultModel(provider: AIProvider): string {
   if (provider === 'gemini') return DEFAULT_GEMINI_MODEL;
   if (provider === 'agent-router') return DEFAULT_AGENT_ROUTER_MODEL;
+  if (provider === 'openai') return DEFAULT_OPENAI_MODEL;
   return DEFAULT_GROQ_MODEL;
 }
 

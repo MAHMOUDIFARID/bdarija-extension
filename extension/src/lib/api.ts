@@ -5,6 +5,7 @@ function getProviderModel(config: UserAIConfig): string {
   if (config.model.trim()) return config.model.trim();
   if (config.provider === 'gemini') return 'gemini-2.5-flash';
   if (config.provider === 'agent-router') return 'gpt-5';
+  if (config.provider === 'openai') return 'gpt-5.5';
   return 'llama-3.1-8b-instant';
 }
 
@@ -48,6 +49,31 @@ function getFriendlyApiError(message: string, provider?: UserAIConfig['provider'
       return 'Agent Router returned an error. Check the backend terminal for details.';
     }
     return message || 'Agent Router returned an error. Check the backend terminal for details.';
+  }
+
+  if (provider === 'openai') {
+    if (/Could not reach OpenAI/i.test(message)) {
+      return 'Could not reach OpenAI. Check OPENAI_BASE_URL or your internet connection.';
+    }
+    if (/invalid API key|api key appears|unauthorized|401|403/i.test(message)) {
+      return 'The OpenAI API key appears to be invalid.';
+    }
+    if (/rate|429/i.test(message)) {
+      return 'OpenAI is rate-limited. Try another model or try again later.';
+    }
+    if (/service is temporarily unavailable|5\d\d/i.test(message)) {
+      return 'OpenAI service is temporarily unavailable.';
+    }
+    if (/endpoint was not found|invalid base URL|unsupported endpoint|404/i.test(message)) {
+      return 'OpenAI endpoint was not found. Check OPENAI_BASE_URL.';
+    }
+    if (/unsupported model|not available for your API key|model.*not|model.*unsupported|does not exist/i.test(message)) {
+      return 'This OpenAI model is not available for your API key.';
+    }
+    if (/timeout|aborted|invalid provider response|provider endpoint|AI provider|OpenAI/i.test(message)) {
+      return 'OpenAI returned an error. Check the backend terminal for details.';
+    }
+    return message || 'OpenAI returned an error. Check the backend terminal for details.';
   }
 
   if (/invalid|unauthorized|401|403/i.test(message)) {

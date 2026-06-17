@@ -1,5 +1,5 @@
 export type TranslationMode = 'arabizi' | 'arabic';
-export type AIProvider = 'gemini' | 'groq' | 'agent-router';
+export type AIProvider = 'gemini' | 'groq' | 'agent-router' | 'openai';
 
 export interface TranslationItem {
   id: string;

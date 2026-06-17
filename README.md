@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://git.io/typing-svg">
     <img
-      src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=2600&pause=900&color=38BDF8&center=true&vCenter=true&width=760&lines=Translate+webpages+into+Moroccan+Darija;BYOK+support+for+Gemini%2C+Groq%2C+and+Agent+Router;Chrome+MV3+extension+with+a+local+Hono+API"
+      src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=2600&pause=900&color=38BDF8&center=true&vCenter=true&width=760&lines=Translate+webpages+into+Moroccan+Darija;BYOK+support+for+Gemini%2C+Groq%2C+Agent+Router%2C+and+OpenAI;Chrome+MV3+extension+with+a+local+Hono+API"
       alt="Animated Bdarija project tagline"
     />
   </a>
@@ -38,7 +38,7 @@ Bdarija is built for quick personal translation experiments without committing s
 |---|---|
 | Extension | WXT, React, TypeScript, Tailwind CSS, Chrome Manifest V3 |
 | Backend | Hono, Node.js, Zod validation |
-| Providers | Gemini, Groq, Agent Router |
+| Providers | Gemini, Groq, Agent Router, OpenAI |
 | Modes | Arabizi and Arabic-script output |
 | Privacy | BYOK config stored locally in `chrome.storage.local` |
 | Cache | Provider, model, mode, and source text are included in cache keys |
@@ -54,7 +54,7 @@ flowchart LR
   Content --> Extract["Visible DOM text extraction"]
   Extract --> Cache["Local translation cache"]
   Cache --> API["Local Hono API"]
-  API --> Provider["Gemini / Groq / Agent Router"]
+  API --> Provider["Gemini / Groq / Agent Router / OpenAI"]
   Provider --> API
   API --> Background
   Background --> Apply["Apply translated text"]
@@ -90,7 +90,7 @@ extension/.output/chrome-mv3
 ## BYOK Setup
 
 1. Open the Bdarija popup.
-2. Select `Gemini`, `Groq`, or `Agent Router`.
+2. Select `Gemini`, `Groq`, `Agent Router`, or `ChatGPT / OpenAI`.
 3. Paste your API key.
 4. Select a model.
 5. Click **Test connection**.
@@ -143,6 +143,26 @@ npm run test:agent-router --workspace=api
 
 The diagnostic reads `AGENT_ROUTER_API_KEY` or `AGENT_ROUTER_TOKEN` from `api/.env` and prints only safe connection details.
 
+## ChatGPT / OpenAI
+
+OpenAI uses the official chat completions API.
+
+| Setting | Value |
+|---|---|
+| Base URL | `https://api.openai.com/v1` |
+| Endpoint | `/chat/completions` |
+| Default model | `gpt-5.5` |
+| Key source | OpenAI API dashboard |
+
+Suggested OpenAI model IDs:
+
+- `gpt-5.5`
+- `gpt-5`
+- `gpt-4.1-mini`
+- `gpt-4.1`
+- `gpt-4o-mini`
+- `gpt-4o`
+
 ## Environment
 
 Create a backend `.env` only if you want fallback keys for local testing:
@@ -157,6 +177,10 @@ Example:
 AGENT_ROUTER_API_KEY=
 AGENT_ROUTER_TOKEN=
 AGENT_ROUTER_BASE_URL=https://agentrouter.org/v1
+AGENT_ROUTER_MODEL=gpt-5
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-5.5
 GEMINI_API_KEY=
 GROQ_API_KEY=
 AI_API_KEY=

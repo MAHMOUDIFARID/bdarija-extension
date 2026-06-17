@@ -11,6 +11,7 @@ const defaultModels: Record<AIProvider, string> = {
   gemini: 'gemini-2.5-flash',
   groq: 'llama-3.1-8b-instant',
   'agent-router': 'gpt-5',
+  openai: 'gpt-5.5',
 };
 
 const PROVIDER_MODELS: Record<AIProvider, string[]> = {
@@ -32,6 +33,14 @@ const PROVIDER_MODELS: Record<AIProvider, string[]> = {
     'claude-opus-4-8',
     'claude-opus-4-7',
     'claude-opus-4-6'
+  ],
+  openai: [
+    'gpt-5.5',
+    'gpt-5',
+    'gpt-4.1-mini',
+    'gpt-4.1',
+    'gpt-4o-mini',
+    'gpt-4o'
   ]
 };
 
@@ -234,6 +243,7 @@ export default function App() {
             <option value="gemini">Gemini</option>
             <option value="groq">Groq</option>
             <option value="agent-router">Agent Router</option>
+            <option value="openai">ChatGPT / OpenAI</option>
           </select>
         </label>
 

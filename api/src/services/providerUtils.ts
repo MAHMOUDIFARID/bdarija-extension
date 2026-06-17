@@ -83,7 +83,14 @@ export function getFriendlyProviderError(error: unknown): string {
       error.message.startsWith('The Agent Router API key') ||
       error.message.startsWith('Agent Router endpoint') ||
       error.message.startsWith('Agent Router is rate-limited') ||
-      error.message.startsWith('Agent Router service')
+      error.message.startsWith('Agent Router service') ||
+      error.message.startsWith('OpenAI rejected') ||
+      error.message.startsWith('OpenAI returned') ||
+      error.message.startsWith('Could not reach OpenAI') ||
+      error.message.startsWith('The OpenAI API key') ||
+      error.message.startsWith('OpenAI endpoint') ||
+      error.message.startsWith('OpenAI is rate-limited') ||
+      error.message.startsWith('OpenAI service')
     ) {
       return error.message;
     }

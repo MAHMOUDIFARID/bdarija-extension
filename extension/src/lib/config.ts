@@ -36,6 +36,13 @@ export const CONFIG = {
       rateLimitDelayMs: 10000,
       maxRetryAttempts: 1,
     },
+    openai: {
+      chunkSize: 1,
+      chunkCharLimit: 700,
+      requestDelayMs: 1200,
+      rateLimitDelayMs: 12000,
+      maxRetryAttempts: 1,
+    },
   },
 
   // Page scanning limits. Large pages can contain thousands of DOM text nodes,

@@ -10,7 +10,7 @@ function isValidUserAIConfig(value: unknown): value is UserAIConfig {
   const provider = config.provider as string | undefined;
   return (
     typeof provider === 'string' &&
-    ['gemini', 'groq', 'agent-router', 'agentrouter'].includes(provider) &&
+    ['gemini', 'groq', 'agent-router', 'agentrouter', 'openai'].includes(provider) &&
     typeof config.apiKey === 'string' &&
     config.apiKey.trim().length > 0 &&
     typeof config.model === 'string'
