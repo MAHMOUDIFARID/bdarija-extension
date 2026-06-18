@@ -1,5 +1,10 @@
 import { extractTextNodes, applyTranslations, restoreOriginalText } from '../src/lib/dom.js';
-import { installSelectionPopup, showSelectionTranslation } from '../src/lib/selectionPopup.js';
+import {
+  installFloatingSelectionToolbar,
+  installSelectionPopup,
+  showSelectionTranslation
+} from '../src/lib/selectionPopup.js';
+import { TranslationMode } from '../src/lib/types.js';
 
 export default defineContentScript({
   matches: ['http://*/*', 'https://*/*'],
@@ -7,6 +12,19 @@ export default defineContentScript({
   main() {
     console.log('[Bdarija] Content script active');
     installSelectionPopup();
+    installFloatingSelectionToolbar((mode: TranslationMode, text: string) => {
+      chrome.runtime.sendMessage({
+        type: 'TRANSLATE_SELECTION',
+        payload: { mode, text }
+      }).catch(() => {
+        showSelectionTranslation({
+          status: 'error',
+          originalText: text,
+          errorMessage: 'Could not start selection translation.',
+          mode
+        });
+      });
+    });
 
     let autoTranslateEnabled = false;
     let viewportTimer: number | undefined;

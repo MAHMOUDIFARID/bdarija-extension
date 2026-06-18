@@ -87,6 +87,21 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (type === 'TRANSLATE_SELECTION') {
+      const tabId = sender.tab?.id;
+      const selectionText = typeof payload?.text === 'string' ? payload.text : '';
+      const mode = payload?.mode as TranslationMode;
+      if (!tabId) {
+        sendResponse({ error: 'No active tab found' });
+        return true;
+      }
+
+      handleSelectionTranslation(tabId, selectionText, mode)
+        .then(() => sendResponse({ success: true }))
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+    }
+
     if (type === 'RESTORE_ORIGINAL') {
       handleRestoreOriginal()
         .then(() => sendResponse({ success: true }))

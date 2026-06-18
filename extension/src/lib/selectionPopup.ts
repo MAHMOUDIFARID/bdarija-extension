@@ -2,6 +2,8 @@ import { SelectionTranslationPayload } from './types.js';
 
 let savedRange: Range | null = null;
 let popupHost: HTMLDivElement | null = null;
+let toolbarHost: HTMLDivElement | null = null;
+let toolbarTimer: number | undefined;
 let manropeFontInstalled = false;
 
 function installManropeFont(): void {
@@ -82,6 +84,22 @@ function createButton(label: string, variant: 'primary' | 'secondary' = 'seconda
 function closePopup(): void {
   popupHost?.remove();
   popupHost = null;
+}
+
+function closeToolbar(): void {
+  toolbarHost?.remove();
+  toolbarHost = null;
+  window.clearTimeout(toolbarTimer);
+}
+
+function getSelectedText(): string {
+  const selection = window.getSelection();
+  return selection?.toString().replace(/\s+/g, ' ').trim() || '';
+}
+
+function shouldIgnoreSelectionTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('input, textarea, select, [contenteditable="true"], #bdarija-selection-translation, #bdarija-selection-toolbar'));
 }
 
 function replaceSelection(text: string): void {
@@ -297,6 +315,7 @@ export function installSelectionPopup(): void {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closePopup();
+      closeToolbar();
     }
   });
 }
@@ -306,4 +325,147 @@ export function showSelectionTranslation(payload: SelectionTranslationPayload): 
   popupHost?.remove();
   popupHost = buildPopup(payload);
   document.documentElement.appendChild(popupHost);
+}
+
+function createToolbarButton(label: string, title: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.title = title;
+  button.style.border = '1px solid rgba(148,163,184,0.20)';
+  button.style.borderRadius = '999px';
+  button.style.padding = '7px 10px';
+  button.style.background = 'rgba(15,23,42,0.76)';
+  button.style.color = '#f8fafc';
+  button.style.fontFamily = 'Manrope, Inter, ui-sans-serif, system-ui, sans-serif';
+  button.style.fontSize = '11px';
+  button.style.fontWeight = '900';
+  button.style.lineHeight = '1';
+  button.style.cursor = 'pointer';
+  button.style.userSelect = 'none';
+  button.style.transition = 'background 140ms ease, border-color 140ms ease, transform 140ms ease';
+  button.addEventListener('mouseenter', () => {
+    button.style.background = 'rgba(20,184,166,0.24)';
+    button.style.borderColor = 'rgba(94,234,212,0.48)';
+    button.style.transform = 'translateY(-1px)';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.background = 'rgba(15,23,42,0.76)';
+    button.style.borderColor = 'rgba(148,163,184,0.20)';
+    button.style.transform = 'translateY(0)';
+  });
+  return button;
+}
+
+function positionToolbar(host: HTMLDivElement): void {
+  const rect = getAnchorRect();
+  const width = host.offsetWidth || 210;
+  const height = host.offsetHeight || 44;
+  const top = clamp(rect.top - height - 10, 10, window.innerHeight - height - 10);
+  const left = clamp(rect.left + rect.width / 2 - width / 2, 10, window.innerWidth - width - 10);
+
+  host.style.top = `${top}px`;
+  host.style.left = `${left}px`;
+}
+
+function buildSelectionToolbar(onTranslate: (mode: 'arabizi' | 'arabic', text: string) => void): HTMLDivElement {
+  installManropeFont();
+
+  const host = document.createElement('div');
+  host.id = 'bdarija-selection-toolbar';
+  host.style.position = 'fixed';
+  host.style.zIndex = '2147483646';
+  host.style.display = 'flex';
+  host.style.alignItems = 'center';
+  host.style.gap = '6px';
+  host.style.padding = '7px';
+  host.style.borderRadius = '999px';
+  host.style.background = 'linear-gradient(160deg, rgba(12,18,32,0.96), rgba(3,7,18,0.96))';
+  host.style.border = '1px solid rgba(148,163,184,0.22)';
+  host.style.boxShadow = '0 18px 44px rgba(2,6,23,0.42), inset 0 1px 0 rgba(255,255,255,0.06)';
+  host.style.backdropFilter = 'blur(14px)';
+  host.style.fontFamily = 'Manrope, Inter, ui-sans-serif, system-ui, sans-serif';
+  host.style.userSelect = 'none';
+
+  const label = document.createElement('div');
+  label.textContent = 'Bdarija';
+  label.style.padding = '0 6px 0 8px';
+  label.style.color = 'rgba(226,232,240,0.78)';
+  label.style.fontSize = '11px';
+  label.style.fontWeight = '900';
+
+  const arabiziButton = createToolbarButton('Arabizi', 'Translate selection to Darija Arabizi');
+  arabiziButton.addEventListener('mousedown', (event) => event.preventDefault());
+  arabiziButton.addEventListener('click', () => {
+    const text = getSelectedText();
+    if (!text) return;
+    rememberCurrentSelection();
+    closeToolbar();
+    onTranslate('arabizi', text);
+  });
+
+  const arabicButton = createToolbarButton('Arabic', 'Translate selection to Darija Arabic script');
+  arabicButton.addEventListener('mousedown', (event) => event.preventDefault());
+  arabicButton.addEventListener('click', () => {
+    const text = getSelectedText();
+    if (!text) return;
+    rememberCurrentSelection();
+    closeToolbar();
+    onTranslate('arabic', text);
+  });
+
+  const closeButton = createToolbarButton('x', 'Close toolbar');
+  closeButton.style.width = '28px';
+  closeButton.style.padding = '7px 0';
+  closeButton.addEventListener('mousedown', (event) => event.preventDefault());
+  closeButton.addEventListener('click', closeToolbar);
+
+  host.append(label, arabiziButton, arabicButton, closeButton);
+  requestAnimationFrame(() => {
+    positionToolbar(host);
+    host.animate(
+      [
+        { opacity: 0, transform: 'translateY(4px) scale(0.98)' },
+        { opacity: 1, transform: 'translateY(0) scale(1)' }
+      ],
+      { duration: 120, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+    );
+  });
+
+  return host;
+}
+
+export function installFloatingSelectionToolbar(
+  onTranslate: (mode: 'arabizi' | 'arabic', text: string) => void
+): void {
+  document.addEventListener('selectionchange', () => {
+    window.clearTimeout(toolbarTimer);
+    toolbarTimer = window.setTimeout(() => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        closeToolbar();
+        return;
+      }
+
+      const anchorNode = selection.anchorNode;
+      const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+      if (shouldIgnoreSelectionTarget(anchorElement || null)) {
+        closeToolbar();
+        return;
+      }
+
+      rememberCurrentSelection();
+      toolbarHost?.remove();
+      toolbarHost = buildSelectionToolbar(onTranslate);
+      document.documentElement.appendChild(toolbarHost);
+    }, 180);
+  });
+
+  document.addEventListener('mousedown', (event) => {
+    if (shouldIgnoreSelectionTarget(event.target)) return;
+    closeToolbar();
+  }, true);
+
+  window.addEventListener('scroll', closeToolbar, { passive: true });
+  window.addEventListener('resize', closeToolbar, { passive: true });
 }

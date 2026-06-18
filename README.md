@@ -44,6 +44,7 @@ Bdarija is built for quick personal translation experiments without committing s
 | Cache | Provider, model, mode, and source text are included in cache keys |
 | Recovery | Restore original page text after translation |
 | Selection tools | Right-click selected text to translate, copy, or replace |
+| Floating toolbar | Select text and translate it without opening the context menu |
 | Smart Auto | Translate newly visible text while scrolling |
 
 ## How It Works
@@ -105,8 +106,8 @@ Your key is stored locally in the browser and is only sent to the local backend 
 You can translate a specific sentence or paragraph without scanning the whole page.
 
 1. Select text on any webpage.
-2. Right-click the selection.
-3. Choose **Translate selection to Darija Arabizi** or **Translate selection to Darija Arabic script**.
+2. Use the floating **Bdarija** toolbar to choose **Arabizi** or **Arabic**.
+3. You can also right-click the selection and choose a Bdarija translation action.
 4. Use the floating result panel to copy the translation, replace the selected text, or close the panel.
 
 Selected text translation uses the same provider config and cache as full-page translation.
