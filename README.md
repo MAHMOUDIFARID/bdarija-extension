@@ -44,6 +44,7 @@ Bdarija is built for quick personal translation experiments without committing s
 | Cache | Provider, model, mode, and source text are included in cache keys |
 | Recovery | Restore original page text after translation |
 | Selection tools | Right-click selected text to translate, copy, or replace |
+| Smart Auto | Translate newly visible text while scrolling |
 
 ## How It Works
 
@@ -109,6 +110,12 @@ You can translate a specific sentence or paragraph without scanning the whole pa
 4. Use the floating result panel to copy the translation, replace the selected text, or close the panel.
 
 Selected text translation uses the same provider config and cache as full-page translation.
+
+## Smart Viewport Auto Translate
+
+Use **Smart Auto Translate** when a page is large. Bdarija translates the current viewport first, then watches scroll and resize events to translate newly visible text. Cached translations are reused, so repeated text is not sent back to the provider.
+
+Click **Stop Smart Auto** to pause the watcher. Restore original text still works for text translated by full-page scan, selected text replacement, and smart viewport mode.
 
 ## Agent Router
 

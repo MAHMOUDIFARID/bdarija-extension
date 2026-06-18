@@ -37,10 +37,15 @@ export interface TabState {
   translatedCount?: number;
   errorMessage?: string;
   mode?: TranslationMode;
+  autoTranslate?: boolean;
 }
 
 export type MessageType =
   | 'START_TRANSLATION'
+  | 'START_AUTO_TRANSLATION'
+  | 'STOP_AUTO_TRANSLATION'
+  | 'VIEWPORT_CHANGED'
+  | 'SET_AUTO_TRANSLATE'
   | 'RESTORE_ORIGINAL'
   | 'EXTRACT_TEXT'
   | 'APPLY_TRANSLATION'

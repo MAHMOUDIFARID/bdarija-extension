@@ -12,6 +12,7 @@ export const CONFIG = {
   requestDelayMs: 1500,
   rateLimitDelayMs: 8000,
   maxRetryAttempts: 1,
+  autoViewportIdleMs: 900,
 
   // Gemini free keys need slower line-by-line translation to avoid burning RPM/TPM.
   providerPacing: {

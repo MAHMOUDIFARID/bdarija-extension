@@ -24,6 +24,8 @@ export default defineBackground(() => {
   console.log('[Bdarija] Background service worker active');
 
   const activeTranslations = new Set<number>();
+  const autoTranslations = new Map<number, { mode: TranslationMode; translatedCount: number }>();
+  const pendingViewportTranslations = new Set<number>();
   const selectionMenuItems = [
     {
       id: 'bdarija-translate-selection-arabizi',
@@ -59,6 +61,32 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (type === 'START_AUTO_TRANSLATION') {
+      const mode = payload as TranslationMode;
+      handleAutoTranslationStart(mode)
+        .then(() => sendResponse({ success: true }))
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+    }
+
+    if (type === 'STOP_AUTO_TRANSLATION') {
+      handleAutoTranslationStop()
+        .then(() => sendResponse({ success: true }))
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+    }
+
+    if (type === 'VIEWPORT_CHANGED') {
+      const tabId = sender.tab?.id;
+      if (tabId && autoTranslations.has(tabId)) {
+        handleViewportTranslation(tabId).catch((error) => {
+          console.error('[Bdarija] Viewport translation error:', error);
+        });
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+
     if (type === 'RESTORE_ORIGINAL') {
       handleRestoreOriginal()
         .then(() => sendResponse({ success: true }))
@@ -72,6 +100,8 @@ export default defineBackground(() => {
       const stateKey = `tab_state:${tabId}`;
       chrome.storage.local.remove(stateKey);
       activeTranslations.delete(tabId);
+      autoTranslations.delete(tabId);
+      pendingViewportTranslations.delete(tabId);
     }
   });
 
@@ -79,6 +109,8 @@ export default defineBackground(() => {
     const stateKey = `tab_state:${tabId}`;
     chrome.storage.local.remove(stateKey);
     activeTranslations.delete(tabId);
+    autoTranslations.delete(tabId);
+    pendingViewportTranslations.delete(tabId);
   });
 
   function setupContextMenus(): void {
@@ -270,7 +302,8 @@ export default defineBackground(() => {
     stateKey: string,
     mode: TranslationMode,
     translatedItems: TranslationItem[],
-    currentCount: number
+    currentCount: number,
+    autoTranslate = false
   ): Promise<number> {
     if (translatedItems.length === 0) return currentCount;
 
@@ -284,9 +317,218 @@ export default defineBackground(() => {
     }
 
     const nextCount = currentCount + (applyResult.count ?? 0);
-    const translatingState: TabState = { status: 'translating', translatedCount: nextCount, mode };
+    const translatingState: TabState = {
+      status: 'translating',
+      translatedCount: nextCount,
+      mode,
+      autoTranslate
+    };
     await chrome.storage.local.set({ [stateKey]: translatingState });
     return nextCount;
+  }
+
+  async function setContentAutoTranslate(tabId: number, enabled: boolean): Promise<void> {
+    await sendToContentScript<{ success?: boolean; error?: string }>(tabId, {
+      type: 'SET_AUTO_TRANSLATE',
+      payload: { enabled },
+    }).catch((error) => {
+      if (enabled) throw error;
+      console.warn('[Bdarija] Could not disable content auto translate:', (error as Error).message);
+      return { success: false };
+    });
+  }
+
+  async function translateViewportOnce(tabId: number): Promise<void> {
+    const session = autoTranslations.get(tabId);
+    if (!session) return;
+
+    if (activeTranslations.has(tabId)) {
+      pendingViewportTranslations.add(tabId);
+      return;
+    }
+
+    activeTranslations.add(tabId);
+    pendingViewportTranslations.delete(tabId);
+    const stateKey = `tab_state:${tabId}`;
+
+    try {
+      const aiConfig = await getUserAIConfig();
+      if (!aiConfig) {
+        throw new Error('Add an API key before translating.');
+      }
+
+      const extractResult = await sendToContentScript<{ items?: TranslationItem[]; error?: string }>(
+        tabId,
+        { type: 'EXTRACT_TEXT', payload: { viewportOnly: true } }
+      );
+
+      if (extractResult.error) {
+        throw new Error(extractResult.error);
+      }
+
+      const items = extractResult.items || [];
+      if (items.length === 0) {
+        await chrome.storage.local.set({
+          [stateKey]: {
+            status: 'translating',
+            translatedCount: session.translatedCount,
+            mode: session.mode,
+            autoTranslate: true
+          } satisfies TabState
+        });
+        return;
+      }
+
+      const cachedTranslationsMap = await getBatchCachedTranslations(
+        items.map((item) => item.text),
+        session.mode,
+        aiConfig
+      );
+      const pacing = getProviderPacing(aiConfig.provider);
+      const missingItems: TranslationItem[] = [];
+      let translatedCount = session.translatedCount;
+
+      for (const item of items) {
+        const cached = cachedTranslationsMap.get(item.text.trim());
+        if (cached !== undefined) {
+          translatedCount = await applyTranslatedItems(
+            tabId,
+            stateKey,
+            session.mode,
+            [{ id: item.id, text: cached }],
+            translatedCount,
+            true
+          );
+        } else {
+          missingItems.push(item);
+        }
+      }
+
+      const chunks = chunkTranslationItems(missingItems, pacing.chunkSize, pacing.chunkCharLimit);
+      for (const chunk of chunks) {
+        if (!autoTranslations.has(tabId)) break;
+
+        let translations: TranslationItem[] = [];
+        try {
+          translations = await translateChunkWithRetries(chunk, session.mode, aiConfig);
+        } catch (error) {
+          const failureMessage = (error as Error).message || 'Translation failed. Please try again.';
+          const errorState: TabState = {
+            status: 'translated',
+            translatedCount,
+            mode: session.mode,
+            autoTranslate: true,
+            errorMessage: getPartialProgressMessage(aiConfig.provider, failureMessage)
+          };
+          await chrome.storage.local.set({ [stateKey]: errorState });
+          if (isRateLimitError(error)) {
+            autoTranslations.set(tabId, { ...session, translatedCount });
+            return;
+          }
+          await sleep(pacing.requestDelayMs);
+          continue;
+        }
+
+        translatedCount = await applyTranslatedItems(
+          tabId,
+          stateKey,
+          session.mode,
+          translations,
+          translatedCount,
+          true
+        );
+
+        const cacheEntries = chunk.flatMap((item) => {
+          const matchedResult = translations.find((translation) => translation.id === item.id);
+          return matchedResult && matchedResult.text.trim() !== item.text.trim()
+            ? [{ original: item.text, translated: matchedResult.text }]
+            : [];
+        });
+
+        await setBatchCachedTranslations(cacheEntries, session.mode, aiConfig);
+        autoTranslations.set(tabId, { ...session, translatedCount });
+        await sleep(pacing.requestDelayMs);
+      }
+
+      autoTranslations.set(tabId, { ...session, translatedCount });
+      await chrome.storage.local.set({
+        [stateKey]: {
+          status: 'translating',
+          translatedCount,
+          mode: session.mode,
+          autoTranslate: true
+        } satisfies TabState
+      });
+    } catch (error) {
+      console.error('[Bdarija] Smart viewport translation error:', error);
+      const errorState: TabState = {
+        status: 'error',
+        errorMessage: (error as Error).message,
+        mode: session.mode,
+        autoTranslate: false
+      };
+      await chrome.storage.local.set({ [stateKey]: errorState });
+      autoTranslations.delete(tabId);
+      await setContentAutoTranslate(tabId, false);
+    } finally {
+      activeTranslations.delete(tabId);
+      if (pendingViewportTranslations.has(tabId) && autoTranslations.has(tabId)) {
+        pendingViewportTranslations.delete(tabId);
+        setTimeout(() => {
+          handleViewportTranslation(tabId).catch((error) => {
+            console.error('[Bdarija] Pending viewport translation error:', error);
+          });
+        }, CONFIG.autoViewportIdleMs);
+      }
+    }
+  }
+
+  async function handleViewportTranslation(tabId: number): Promise<void> {
+    await translateViewportOnce(tabId);
+  }
+
+  async function handleAutoTranslationStart(mode: TranslationMode): Promise<void> {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabId = tab?.id;
+    if (!tabId) {
+      throw new Error('No active tab found');
+    }
+
+    const aiConfig = await getUserAIConfig();
+    if (!aiConfig) {
+      throw new Error('Add an API key before translating.');
+    }
+
+    const stateKey = `tab_state:${tabId}`;
+    autoTranslations.set(tabId, { mode, translatedCount: 0 });
+    await chrome.storage.local.set({
+      [stateKey]: { status: 'translating', translatedCount: 0, mode, autoTranslate: true } satisfies TabState
+    });
+    await setContentAutoTranslate(tabId, true);
+    await translateViewportOnce(tabId);
+  }
+
+  async function handleAutoTranslationStop(): Promise<void> {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabId = tab?.id;
+    if (!tabId) {
+      throw new Error('No active tab found');
+    }
+
+    const session = autoTranslations.get(tabId);
+    autoTranslations.delete(tabId);
+    pendingViewportTranslations.delete(tabId);
+    await setContentAutoTranslate(tabId, false);
+
+    const stateKey = `tab_state:${tabId}`;
+    await chrome.storage.local.set({
+      [stateKey]: {
+        status: 'translated',
+        translatedCount: session?.translatedCount ?? 0,
+        mode: session?.mode,
+        autoTranslate: false
+      } satisfies TabState
+    });
   }
 
   async function handleTranslationStart(mode: TranslationMode): Promise<void> {
@@ -295,6 +537,10 @@ export default defineBackground(() => {
     if (!tabId) {
       throw new Error('No active tab found');
     }
+
+    autoTranslations.delete(tabId);
+    pendingViewportTranslations.delete(tabId);
+    await setContentAutoTranslate(tabId, false);
 
     if (activeTranslations.has(tabId)) {
       console.warn(`[Bdarija] Translation already running on tab ${tabId}`);
@@ -310,7 +556,7 @@ export default defineBackground(() => {
         throw new Error('Add an API key before translating.');
       }
 
-      const startState: TabState = { status: 'translating', mode };
+      const startState: TabState = { status: 'translating', mode, autoTranslate: false };
       await chrome.storage.local.set({ [stateKey]: startState });
 
       const extractResult = await sendToContentScript<{ items?: TranslationItem[]; error?: string }>(
@@ -348,7 +594,8 @@ export default defineBackground(() => {
             stateKey,
             mode,
             [{ id: item.id, text: cached }],
-            translatedCount
+            translatedCount,
+            false
           );
         } else {
           missingItems.push(item);
@@ -385,7 +632,7 @@ export default defineBackground(() => {
             continue;
           }
 
-          translatedCount = await applyTranslatedItems(tabId, stateKey, mode, translations, translatedCount);
+          translatedCount = await applyTranslatedItems(tabId, stateKey, mode, translations, translatedCount, false);
 
           const cacheEntries = chunk.flatMap((item) => {
             const matchedResult = translations.find((t) => t.id === item.id);
@@ -403,7 +650,7 @@ export default defineBackground(() => {
         throw new Error(firstFailureMessage || 'Translation failed. Please try again.');
       }
 
-      const finalState: TabState = { status: 'translated', translatedCount, mode };
+      const finalState: TabState = { status: 'translated', translatedCount, mode, autoTranslate: false };
       if (failedItems.length > 0 && (stoppedForProviderLimit || firstFailureMessage)) {
         finalState.errorMessage = getPartialProgressMessage(aiConfig.provider, firstFailureMessage);
       }
@@ -436,6 +683,10 @@ export default defineBackground(() => {
     const stateKey = `tab_state:${tabId}`;
 
     try {
+      autoTranslations.delete(tabId);
+      pendingViewportTranslations.delete(tabId);
+      await setContentAutoTranslate(tabId, false);
+
       const restoreResult = await sendToContentScript<{ success?: boolean; error?: string }>(tabId, {
         type: 'RESTORE_DOM',
       });

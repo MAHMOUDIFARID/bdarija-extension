@@ -204,6 +204,42 @@ export default function App() {
     });
   };
 
+  const handleToggleAutoTranslate = async () => {
+    if (tabId === null) return;
+    if (!aiConfig) {
+      setView('setup');
+      setTabState({ status: 'setup-required', errorMessage: 'Add an API key before translating.' });
+      return;
+    }
+
+    const isAutoTranslating = tabState.autoTranslate === true;
+    const stateKey = `tab_state:${tabId}`;
+
+    if (!isAutoTranslating) {
+      await chrome.storage.local.set({
+        [stateKey]: { status: 'translating', translatedCount: tabState.translatedCount ?? 0, mode, autoTranslate: true }
+      });
+    }
+
+    chrome.runtime.sendMessage(
+      { type: isAutoTranslating ? 'STOP_AUTO_TRANSLATION' : 'START_AUTO_TRANSLATION', payload: mode },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          setTabState({
+            status: 'error',
+            errorMessage: 'Could not connect to the local backend. Make sure npm run dev:api is running.',
+            mode,
+            autoTranslate: false
+          });
+          return;
+        }
+        if (response?.error) {
+          setTabState({ status: 'error', errorMessage: response.error, mode, autoTranslate: false });
+        }
+      }
+    );
+  };
+
   const handleRestore = () => {
     if (tabId === null) return;
 
@@ -305,6 +341,7 @@ export default function App() {
     </div>
   );
 
+  const isAutoTranslating = tabState.autoTranslate === true;
   const isTranslating = tabState.status === 'translating';
 
   return (
@@ -347,6 +384,10 @@ export default function App() {
           <div className="flex flex-col gap-2.5 mt-auto">
             <Button onClick={handleTranslate} disabled={isTranslating}>
               {isTranslating ? 'Translating...' : 'Scan & Translate'}
+            </Button>
+
+            <Button onClick={handleToggleAutoTranslate} variant="secondary">
+              {isAutoTranslating ? 'Stop Smart Auto' : 'Smart Auto Translate'}
             </Button>
 
             {tabState.status === 'translated' && (

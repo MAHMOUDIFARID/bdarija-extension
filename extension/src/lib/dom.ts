@@ -4,6 +4,7 @@ import { CONFIG } from './config.js';
 // Global maps to keep references to the DOM nodes and their original text values
 const nodeMap = new Map<string, Text>();
 const originalTextsMap = new WeakMap<Text, string>();
+const originalNodes = new Set<Text>();
 let nodeCounter = 0;
 
 interface TextCandidate {
@@ -11,6 +12,10 @@ interface TextCandidate {
   text: string;
   index: number;
   inViewport: boolean;
+}
+
+interface ExtractTextOptions {
+  viewportOnly?: boolean;
 }
 
 const SKIP_TAGS = new Set([
@@ -141,11 +146,17 @@ function getScannedCandidates(): TextCandidate[] {
   return candidates;
 }
 
-function selectCandidatesForTranslation(candidates: TextCandidate[]): TextCandidate[] {
+function selectCandidatesForTranslation(
+  candidates: TextCandidate[],
+  options: ExtractTextOptions = {}
+): TextCandidate[] {
   const selected: TextCandidate[] = [];
   let selectedChars = 0;
+  const candidatePool = options.viewportOnly
+    ? candidates.filter((candidate) => candidate.inViewport)
+    : candidates;
 
-  const orderedCandidates = [...candidates].sort((a, b) => {
+  const orderedCandidates = [...candidatePool].sort((a, b) => {
     if (a.inViewport !== b.inViewport) {
       return a.inViewport ? -1 : 1;
     }
@@ -167,13 +178,13 @@ function selectCandidatesForTranslation(candidates: TextCandidate[]): TextCandid
 /**
  * Extracts visible text nodes from the DOM, assigns them IDs, and preserves original text.
  */
-export function extractTextNodes(): TranslationItem[] {
+export function extractTextNodes(options: ExtractTextOptions = {}): TranslationItem[] {
   // Clear map and reset counter for a fresh translation run
   nodeMap.clear();
   nodeCounter = 0;
 
   const items: TranslationItem[] = [];
-  const candidates = selectCandidatesForTranslation(getScannedCandidates());
+  const candidates = selectCandidatesForTranslation(getScannedCandidates(), options);
 
   for (const candidate of candidates) {
     const textNode = candidate.node;
@@ -182,6 +193,7 @@ export function extractTextNodes(): TranslationItem[] {
     // Store original text if not already stored
     if (!originalTextsMap.has(textNode)) {
       originalTextsMap.set(textNode, value);
+      originalNodes.add(textNode);
     }
 
     const id = `node-${nodeCounter++}`;
@@ -189,7 +201,8 @@ export function extractTextNodes(): TranslationItem[] {
     items.push({ id, text: value });
   }
 
-  console.log(`[Bdarija] Scanned ${items.length} useful visible text nodes for translation.`);
+  const scanLabel = options.viewportOnly ? 'viewport' : 'page';
+  console.log(`[Bdarija] Scanned ${items.length} useful ${scanLabel} text nodes for translation.`);
   return items;
 }
 
@@ -201,7 +214,7 @@ export function applyTranslations(translations: TranslationItem[]): number {
   for (const item of translations) {
     const node = nodeMap.get(item.id);
     // Ensure the node exists, is still connected to the DOM, and has a value
-    if (node && node.isConnected) {
+    if (node && node.isConnected && node.nodeValue !== item.text) {
       node.nodeValue = item.text;
       count++;
     }
@@ -213,9 +226,9 @@ export function applyTranslations(translations: TranslationItem[]): number {
  * Restores all modified text nodes back to their original values.
  */
 export function restoreOriginalText(): boolean {
-  if (nodeMap.size === 0) return false;
+  if (originalNodes.size === 0) return false;
 
-  nodeMap.forEach((node) => {
+  originalNodes.forEach((node) => {
     if (node.isConnected && originalTextsMap.has(node)) {
       const original = originalTextsMap.get(node);
       if (original !== undefined) {
@@ -223,6 +236,10 @@ export function restoreOriginalText(): boolean {
       }
     }
   });
+
+  nodeMap.clear();
+  originalNodes.clear();
+  nodeCounter = 0;
 
   return true;
 }

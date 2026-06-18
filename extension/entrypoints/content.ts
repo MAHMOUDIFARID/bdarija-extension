@@ -8,15 +8,52 @@ export default defineContentScript({
     console.log('[Bdarija] Content script active');
     installSelectionPopup();
 
+    let autoTranslateEnabled = false;
+    let viewportTimer: number | undefined;
+
+    const requestViewportTranslation = () => {
+      if (!autoTranslateEnabled) return;
+      window.clearTimeout(viewportTimer);
+      viewportTimer = window.setTimeout(() => {
+        chrome.runtime.sendMessage({ type: 'VIEWPORT_CHANGED' }).catch(() => {
+          // The background worker may be asleep or unavailable on restricted pages.
+        });
+      }, 700);
+    };
+
+    const setAutoTranslate = (enabled: boolean) => {
+      autoTranslateEnabled = enabled;
+      window.clearTimeout(viewportTimer);
+
+      if (enabled) {
+        window.addEventListener('scroll', requestViewportTranslation, { passive: true });
+        window.addEventListener('resize', requestViewportTranslation, { passive: true });
+        requestViewportTranslation();
+        return;
+      }
+
+      window.removeEventListener('scroll', requestViewportTranslation);
+      window.removeEventListener('resize', requestViewportTranslation);
+    };
+
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { type, payload } = message;
 
       if (type === 'EXTRACT_TEXT') {
         try {
-          const items = extractTextNodes();
+          const items = extractTextNodes(payload || {});
           sendResponse({ items });
         } catch (error) {
           console.error('[Bdarija] Extraction failed:', error);
+          sendResponse({ error: (error as Error).message });
+        }
+      } else if (type === 'SET_AUTO_TRANSLATE') {
+        try {
+          const options = payload as { enabled?: boolean } | undefined;
+          setAutoTranslate(Boolean(options?.enabled));
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('[Bdarija] Setting auto translate failed:', error);
           sendResponse({ error: (error as Error).message });
         }
       } else if (type === 'APPLY_TRANSLATION') {
