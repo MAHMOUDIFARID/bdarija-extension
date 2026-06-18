@@ -1,10 +1,12 @@
 ﻿import React from 'react';
 import { Toggle } from './Toggle.js';
-import { TranslationStatus, TranslationMode } from '../lib/types.js';
+import { TranslationStatus, TranslationMode, TranslationStyle } from '../lib/types.js';
 
 interface StatusCardProps {
   mode: TranslationMode;
   setMode: (mode: TranslationMode) => void;
+  style: TranslationStyle;
+  setStyle: (style: TranslationStyle) => void;
   status: TranslationStatus;
   count?: number;
   errorMessage?: string;
@@ -13,6 +15,8 @@ interface StatusCardProps {
 export const StatusCard: React.FC<StatusCardProps> = ({
   mode,
   setMode,
+  style,
+  setStyle,
   status,
   count,
   errorMessage
@@ -32,7 +36,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Unified glassmorphic card - contains only Mode Toggle */}
+      {/* Unified glassmorphic card - contains translation controls */}
       <div className="flex flex-col gap-3.5 p-5 bg-[#0b0e14]/40 border border-white/10 rounded-[24px] backdrop-blur-xl shadow-xl shadow-black/10 select-none">
         <div className="flex items-start gap-3.5">
           {/* Blue globe/translation icon */}
@@ -51,6 +55,21 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         </div>
 
         <Toggle value={mode} onChange={setMode} disabled={isTranslating} />
+
+        <label className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider text-white/35">
+          Style
+          <select
+            value={style}
+            onChange={(event) => setStyle(event.target.value as TranslationStyle)}
+            disabled={isTranslating}
+            className="w-full rounded-xl bg-black/30 border border-white/10 text-white px-3 py-2.5 outline-none normal-case tracking-normal text-[11px] font-semibold disabled:opacity-50"
+          >
+            <option value="casual">Casual</option>
+            <option value="clean-web">Clean Web</option>
+            <option value="gen-z">Gen Z</option>
+            <option value="literal">Literal</option>
+          </select>
+        </label>
 
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-black/20 border border-white/5 px-3 py-2">

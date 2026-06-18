@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusCard } from '../../src/components/StatusCard.js';
 import { Button } from '../../src/components/Button.js';
-import { AIProvider, TabState, TranslationMode, UserAIConfig } from '../../src/lib/types.js';
+import { AIProvider, TabState, TranslationMode, TranslationStyle, UserAIConfig } from '../../src/lib/types.js';
 import { clearUserAIConfig, getUserAIConfig, saveUserAIConfig } from '../../src/lib/userConfig.js';
 import { testProviderConnection } from '../../src/lib/api.js';
 
@@ -49,6 +49,7 @@ function createDefaultConfig(): UserAIConfig {
     provider: 'gemini',
     apiKey: '',
     model: defaultModels.gemini,
+    style: 'casual',
   };
 }
 
@@ -56,6 +57,7 @@ export default function App() {
   const [tabId, setTabId] = useState<number | null>(null);
   const [tabState, setTabState] = useState<TabState>({ status: 'setup-required' });
   const [mode, setMode] = useState<TranslationMode>('arabizi');
+  const [style, setStyle] = useState<TranslationStyle>('casual');
   const [view, setView] = useState<PopupView>('setup');
   const [aiConfig, setAiConfig] = useState<UserAIConfig | null>(null);
   const [draftConfig, setDraftConfig] = useState<UserAIConfig>(createDefaultConfig());
@@ -73,6 +75,7 @@ export default function App() {
       if (config) {
         setAiConfig(config);
         setDraftConfig(config);
+        setStyle(config.style || 'casual');
         setView('main');
         setTabState({ status: 'ready' });
       } else {
@@ -118,11 +121,25 @@ export default function App() {
     setTestMessage('');
   };
 
+  const handleStyleChange = async (nextStyle: TranslationStyle) => {
+    setStyle(nextStyle);
+    if (!aiConfig) return;
+
+    const nextConfig = {
+      ...aiConfig,
+      style: nextStyle,
+    };
+    await saveUserAIConfig(nextConfig);
+    setAiConfig(nextConfig);
+    setDraftConfig(nextConfig);
+  };
+
   const handleTestConnection = async () => {
     const config = {
       ...draftConfig,
       apiKey: draftConfig.apiKey.trim(),
       model: draftConfig.model.trim() || defaultModels[draftConfig.provider],
+      style: draftConfig.style || 'casual',
     };
 
     if (!config.apiKey) {
@@ -152,6 +169,7 @@ export default function App() {
       ...draftConfig,
       apiKey: draftConfig.apiKey.trim(),
       model: draftConfig.model.trim() || defaultModels[draftConfig.provider],
+      style: draftConfig.style || 'casual',
     };
 
     if (!config.apiKey) {
@@ -162,6 +180,7 @@ export default function App() {
     await saveUserAIConfig(config);
     setAiConfig(config);
     setDraftConfig(config);
+    setStyle(config.style);
     setView('main');
     setTabState({ status: 'ready' });
     setTestMessage('');
@@ -311,6 +330,20 @@ export default function App() {
           </datalist>
         </label>
 
+        <label className="flex flex-col gap-1.5 text-[11px] font-semibold text-white/70">
+          Style
+          <select
+            value={draftConfig.style}
+            onChange={(event) => setDraftConfig({ ...draftConfig, style: event.target.value as TranslationStyle })}
+            className="w-full rounded-xl bg-black/30 border border-white/10 text-white px-3 py-2.5 outline-none"
+          >
+            <option value="casual">Casual</option>
+            <option value="clean-web">Clean Web</option>
+            <option value="gen-z">Gen Z</option>
+            <option value="literal">Literal</option>
+          </select>
+        </label>
+
         <p className="text-[10px] text-white/45 leading-relaxed">
           Your key is stored locally in your browser and is only used to translate pages.
         </p>
@@ -376,6 +409,8 @@ export default function App() {
           <StatusCard
             mode={mode}
             setMode={setMode}
+            style={style}
+            setStyle={handleStyleChange}
             status={tabState.status}
             count={tabState.translatedCount}
             errorMessage={tabState.errorMessage}

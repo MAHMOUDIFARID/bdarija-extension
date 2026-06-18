@@ -16,7 +16,8 @@ async function sha256(message: string): Promise<string> {
  */
 function getCachePrefix(mode: TranslationMode, config: UserAIConfig): string {
   const model = config.model.trim() || 'default';
-  return `tr:${config.provider}:${model}:${mode}`;
+  const style = config.style || 'casual';
+  return `tr:${config.provider}:${model}:${mode}:${style}`;
 }
 
 export async function getCachedTranslation(

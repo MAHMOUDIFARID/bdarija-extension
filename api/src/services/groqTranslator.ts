@@ -1,4 +1,4 @@
-import { TranslationItem, TranslationMode } from '../lib/validation.js';
+import { TranslationItem, TranslationMode, TranslationStyle } from '../lib/validation.js';
 import { getSystemPrompt, getUserPrompt } from '../lib/prompts.js';
 import { AITranslationError, parseJsonObject, validateTranslationsForItems } from './providerUtils.js';
 
@@ -25,7 +25,8 @@ export async function translateWithGroq(
   items: TranslationItem[],
   mode: TranslationMode,
   apiKey: string,
-  model = process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL
+  model = process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
+  style: TranslationStyle = 'casual'
 ): Promise<TranslationItem[]> {
   let lastError: AITranslationError | null = null;
 
@@ -33,7 +34,7 @@ export async function translateWithGroq(
     const requestBody = {
       model: candidateModel,
       messages: [
-        { role: 'system', content: getSystemPrompt(mode) },
+        { role: 'system', content: getSystemPrompt(mode, style) },
         { role: 'user', content: getUserPrompt(items) }
       ],
       response_format: { type: 'json_object' },

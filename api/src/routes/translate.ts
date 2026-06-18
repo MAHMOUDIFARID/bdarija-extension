@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { AIProviderSchema, TranslateRequestSchema } from '../lib/validation.js';
+import { AIProviderSchema, TranslateRequestSchema, TranslationStyleSchema } from '../lib/validation.js';
 import { getFriendlyProviderError } from '../services/providerUtils.js';
 import { translateItems } from '../services/aiTranslator.js';
 
@@ -53,6 +53,9 @@ translateRouter.post('/', async (c) => {
     const providerResult = providerHeader ? AIProviderSchema.safeParse(providerHeader) : undefined;
     const provider = providerResult?.success ? providerResult.data : undefined;
     const model = c.req.header('x-bdarija-model')?.trim() || undefined;
+    const styleHeader = c.req.header('x-bdarija-style');
+    const styleResult = styleHeader ? TranslationStyleSchema.safeParse(styleHeader) : undefined;
+    const style = styleResult?.success ? styleResult.data : undefined;
     const authorization = c.req.header('authorization');
     const apiKey = authorization?.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length).trim()
@@ -62,6 +65,7 @@ translateRouter.post('/', async (c) => {
       provider,
       apiKey,
       model,
+      style,
     });
 
     return c.json({ translations });

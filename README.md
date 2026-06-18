@@ -40,8 +40,9 @@ Bdarija is built for quick personal translation experiments without committing s
 | Backend | Hono, Node.js, Zod validation |
 | Providers | Gemini, Groq, Agent Router, OpenAI |
 | Modes | Arabizi and Arabic-script output |
+| Style profiles | Casual, Clean Web, Gen Z, and Literal Darija styles |
 | Privacy | BYOK config stored locally in `chrome.storage.local` |
-| Cache | Provider, model, mode, and source text are included in cache keys |
+| Cache | Provider, model, mode, style, and source text are included in cache keys |
 | Recovery | Restore original page text after translation |
 | Selection tools | Right-click selected text to translate, copy, or replace |
 | Floating toolbar | Select text and translate it without opening the context menu |
@@ -118,6 +119,19 @@ Use **Smart Auto Translate** when a page is large. Bdarija translates the curren
 
 Click **Stop Smart Auto** to pause the watcher. Restore original text still works for text translated by full-page scan, selected text replacement, and smart viewport mode.
 
+## Darija Style Profiles
+
+Bdarija can tune the translation tone without changing providers.
+
+| Style | Use case |
+|---|---|
+| `Casual` | Everyday Moroccan Darija for general reading. |
+| `Clean Web` | Polished Darija for websites, UI, docs, and product text. |
+| `Gen Z` | More social, lighter Arabizi style. |
+| `Literal` | Closer to the original wording and meaning. |
+
+The selected style is stored locally with the provider config and is included in the translation cache key.
+
 ## Agent Router
 
 Agent Router uses an OpenAI-compatible chat completions API.
@@ -189,6 +203,8 @@ AGENT_ROUTER_MODEL=gpt-5
 OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-5.5
+AI_PROVIDER=gemini
+AI_STYLE=casual
 GEMINI_API_KEY=
 GROQ_API_KEY=
 AI_API_KEY=

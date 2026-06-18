@@ -24,7 +24,7 @@ const app = new Hono();
 // Enable CORS for development. In production, this can be restricted to specific browser extension IDs.
 app.use('*', cors({
   origin: '*',
-  allowHeaders: ['Content-Type', 'Authorization', 'x-bdarija-provider', 'x-bdarija-model'],
+  allowHeaders: ['Content-Type', 'Authorization', 'x-bdarija-provider', 'x-bdarija-model', 'x-bdarija-style'],
   allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
   exposeHeaders: ['Content-Length'],
   maxAge: 600,

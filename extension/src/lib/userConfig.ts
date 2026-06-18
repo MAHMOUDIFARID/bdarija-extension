@@ -1,6 +1,7 @@
 import { UserAIConfig } from './types.js';
 
 const USER_AI_CONFIG_KEY = 'user_ai_config';
+const DEFAULT_TRANSLATION_STYLE = 'casual';
 const DEFAULT_AGENT_ROUTER_MODEL = 'gpt-5';
 const LEGACY_AGENT_ROUTER_DEFAULT_MODEL = 'gpt-5.5';
 
@@ -13,7 +14,8 @@ function isValidUserAIConfig(value: unknown): value is UserAIConfig {
     ['gemini', 'groq', 'agent-router', 'agentrouter', 'openai'].includes(provider) &&
     typeof config.apiKey === 'string' &&
     config.apiKey.trim().length > 0 &&
-    typeof config.model === 'string'
+    typeof config.model === 'string' &&
+    (config.style === undefined || ['casual', 'clean-web', 'gen-z', 'literal'].includes(config.style as string))
   );
 }
 
@@ -25,13 +27,15 @@ export async function getUserAIConfig(): Promise<UserAIConfig | null> {
   const model = provider === 'agent-router' && value.model.trim() === LEGACY_AGENT_ROUTER_DEFAULT_MODEL
     ? DEFAULT_AGENT_ROUTER_MODEL
     : value.model.trim();
+  const style = value.style || DEFAULT_TRANSLATION_STYLE;
   const config: UserAIConfig = {
     ...value,
     provider,
     model,
+    style,
   };
 
-  if (config.provider !== value.provider || config.model !== value.model) {
+  if (config.provider !== value.provider || config.model !== value.model || config.style !== value.style) {
     await saveUserAIConfig(config);
   }
 
@@ -44,6 +48,7 @@ export async function saveUserAIConfig(config: UserAIConfig): Promise<void> {
       provider: config.provider,
       apiKey: config.apiKey.trim(),
       model: config.model.trim(),
+      style: config.style || DEFAULT_TRANSLATION_STYLE,
     }
   });
 }

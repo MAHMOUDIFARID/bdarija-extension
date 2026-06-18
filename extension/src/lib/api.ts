@@ -14,6 +14,7 @@ function getHeaders(config: UserAIConfig): Record<string, string> {
     'Content-Type': 'application/json',
     'x-bdarija-provider': config.provider,
     'x-bdarija-model': getProviderModel(config),
+    'x-bdarija-style': config.style || 'casual',
     'Authorization': `Bearer ${config.apiKey}`,
   };
 }

@@ -1,4 +1,4 @@
-import { TranslationItem, TranslationMode } from '../lib/validation.js';
+import { TranslationItem, TranslationMode, TranslationStyle } from '../lib/validation.js';
 import { getSystemPrompt, getUserPrompt } from '../lib/prompts.js';
 import { AITranslationError, parseJsonObject, validateTranslationsForItems } from './providerUtils.js';
 
@@ -178,14 +178,15 @@ export async function translateWithOpenAI(
   items: TranslationItem[],
   mode: TranslationMode,
   apiKey: string,
-  model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL
+  model = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL,
+  style: TranslationStyle = 'casual'
 ): Promise<TranslationItem[]> {
   const selectedModel = model.trim() || DEFAULT_OPENAI_MODEL;
   const data = await requestOpenAIChat(
     apiKey,
     selectedModel,
     [
-      { role: 'system', content: getSystemPrompt(mode) },
+      { role: 'system', content: getSystemPrompt(mode, style) },
       { role: 'user', content: getUserPrompt(items) }
     ],
     45000

@@ -1,5 +1,6 @@
 export type TranslationMode = 'arabizi' | 'arabic';
 export type AIProvider = 'gemini' | 'groq' | 'agent-router' | 'openai';
+export type TranslationStyle = 'casual' | 'clean-web' | 'gen-z' | 'literal';
 
 export interface TranslationItem {
   id: string;
@@ -30,6 +31,7 @@ export interface UserAIConfig {
   provider: AIProvider;
   apiKey: string;
   model: string;
+  style: TranslationStyle;
 }
 
 export interface TabState {

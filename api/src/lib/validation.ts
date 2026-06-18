@@ -11,6 +11,7 @@ export const TranslateRequestSchema = z.object({
 });
 
 export const AIProviderSchema = z.enum(['gemini', 'groq', 'agent-router', 'openai']);
+export const TranslationStyleSchema = z.enum(['casual', 'clean-web', 'gen-z', 'literal']);
 
 export const ProviderTestRequestSchema = z.object({
   provider: AIProviderSchema,
@@ -22,4 +23,5 @@ export type TranslationItem = z.infer<typeof TranslationItemSchema>;
 export type TranslateRequest = z.infer<typeof TranslateRequestSchema>;
 export type TranslationMode = 'arabizi' | 'arabic';
 export type AIProvider = z.infer<typeof AIProviderSchema>;
+export type TranslationStyle = z.infer<typeof TranslationStyleSchema>;
 export type ProviderTestRequest = z.infer<typeof ProviderTestRequestSchema>;

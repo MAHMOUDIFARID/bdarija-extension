@@ -1,4 +1,4 @@
-import { TranslationItem, TranslationMode } from '../lib/validation.js';
+import { TranslationItem, TranslationMode, TranslationStyle } from '../lib/validation.js';
 import { getSystemPrompt, getUserPrompt } from '../lib/prompts.js';
 import { AITranslationError, parseJsonObject, validateTranslationsForItems } from './providerUtils.js';
 
@@ -8,7 +8,8 @@ export async function translateWithGemini(
   items: TranslationItem[],
   mode: TranslationMode,
   apiKey: string,
-  model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
+  model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+  style: TranslationStyle = 'casual'
 ): Promise<TranslationItem[]> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const requestBody = {
@@ -18,7 +19,7 @@ export async function translateWithGemini(
       }
     ],
     systemInstruction: {
-      parts: [{ text: getSystemPrompt(mode) }]
+      parts: [{ text: getSystemPrompt(mode, style) }]
     },
     generationConfig: {
       responseMimeType: 'application/json',

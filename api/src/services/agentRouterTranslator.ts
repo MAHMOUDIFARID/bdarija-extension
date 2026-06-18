@@ -1,5 +1,5 @@
 import https from 'node:https';
-import { TranslationItem, TranslationMode } from '../lib/validation.js';
+import { TranslationItem, TranslationMode, TranslationStyle } from '../lib/validation.js';
 import { getSystemPrompt, getUserPrompt } from '../lib/prompts.js';
 import { AITranslationError, parseJsonObject, validateTranslationsForItems } from './providerUtils.js';
 
@@ -242,14 +242,15 @@ export async function translateWithAgentRouter(
   items: TranslationItem[],
   mode: TranslationMode,
   apiKey: string,
-  model = process.env.AGENT_ROUTER_MODEL || DEFAULT_AGENT_ROUTER_MODEL
+  model = process.env.AGENT_ROUTER_MODEL || DEFAULT_AGENT_ROUTER_MODEL,
+  style: TranslationStyle = 'casual'
 ): Promise<TranslationItem[]> {
   const selectedModel = model.trim() || DEFAULT_AGENT_ROUTER_MODEL;
   const data = await requestAgentRouterChat(
     apiKey,
     selectedModel,
     [
-      { role: 'system', content: getSystemPrompt(mode) },
+      { role: 'system', content: getSystemPrompt(mode, style) },
       { role: 'user', content: getUserPrompt(items) }
     ],
     45000

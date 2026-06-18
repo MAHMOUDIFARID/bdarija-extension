@@ -1,4 +1,4 @@
-import { AIProvider, TranslationItem, TranslationMode } from '../lib/validation.js';
+import { AIProvider, TranslationItem, TranslationMode, TranslationStyle } from '../lib/validation.js';
 import { DEFAULT_GEMINI_MODEL, testGeminiConnection, translateWithGemini } from './geminiTranslator.js';
 import { DEFAULT_GROQ_MODEL, testGroqConnection, translateWithGroq } from './groqTranslator.js';
 import { DEFAULT_AGENT_ROUTER_MODEL, testAgentRouterConnection, translateWithAgentRouter } from './agentRouterTranslator.js';
@@ -9,6 +9,7 @@ export interface TranslationProviderConfig {
   provider?: AIProvider;
   apiKey?: string;
   model?: string;
+  style?: TranslationStyle;
 }
 
 function getEnvironmentProvider(): AIProvider | undefined {
@@ -48,6 +49,14 @@ function getEnvironmentModel(provider: AIProvider): string {
   return process.env.GROQ_MODEL || process.env.AI_MODEL || DEFAULT_GROQ_MODEL;
 }
 
+function getEnvironmentStyle(): TranslationStyle {
+  const style = process.env.AI_STYLE?.toLowerCase();
+  if (style === 'casual' || style === 'clean-web' || style === 'gen-z' || style === 'literal') {
+    return style;
+  }
+  return 'casual';
+}
+
 export async function translateItems(
   items: TranslationItem[],
   mode: TranslationMode,
@@ -65,22 +74,25 @@ export async function translateItems(
   }
 
   const model = config.model || getEnvironmentModel(provider);
+  const style = config.style || getEnvironmentStyle();
   if (provider === 'gemini') {
-    return translateWithGemini(items, mode, apiKey, model);
+    return translateWithGemini(items, mode, apiKey, model, style);
   }
 
   if (provider === 'agent-router') {
-    return translateWithAgentRouter(items, mode, apiKey, model);
+    return translateWithAgentRouter(items, mode, apiKey, model, style);
   }
 
   if (provider === 'openai') {
-    return translateWithOpenAI(items, mode, apiKey, model);
+    return translateWithOpenAI(items, mode, apiKey, model, style);
   }
 
-  return translateWithGroq(items, mode, apiKey, model);
+  return translateWithGroq(items, mode, apiKey, model, style);
 }
 
-export async function testProviderConnection(config: Required<TranslationProviderConfig>): Promise<void> {
+export async function testProviderConnection(
+  config: Required<Pick<TranslationProviderConfig, 'provider' | 'apiKey' | 'model'>>
+): Promise<void> {
   if (config.provider === 'gemini') {
     await testGeminiConnection(config.apiKey, config.model);
     return;
