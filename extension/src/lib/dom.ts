@@ -193,8 +193,8 @@ export function extractTextNodes(options: ExtractTextOptions = {}): TranslationI
     // Store original text if not already stored
     if (!originalTextsMap.has(textNode)) {
       originalTextsMap.set(textNode, value);
-      originalNodes.add(textNode);
     }
+    originalNodes.add(textNode);
 
     const id = `node-${nodeCounter++}`;
     nodeMap.set(id, textNode);
