@@ -37,6 +37,7 @@ export interface UserAIConfig {
 export interface TabState {
   status: TranslationStatus;
   translatedCount?: number;
+  totalItems?: number;
   errorMessage?: string;
   mode?: TranslationMode;
   autoTranslate?: boolean;

@@ -318,6 +318,7 @@ export default defineBackground(() => {
     mode: TranslationMode,
     translatedItems: TranslationItem[],
     currentCount: number,
+    totalItems: number,
     autoTranslate = false
   ): Promise<number> {
     if (translatedItems.length === 0) return currentCount;
@@ -335,6 +336,7 @@ export default defineBackground(() => {
     const translatingState: TabState = {
       status: 'translating',
       translatedCount: nextCount,
+      totalItems,
       mode,
       autoTranslate
     };
@@ -387,6 +389,7 @@ export default defineBackground(() => {
           [stateKey]: {
             status: 'translating',
             translatedCount: session.translatedCount,
+            totalItems: 0,
             mode: session.mode,
             autoTranslate: true
           } satisfies TabState
@@ -394,6 +397,7 @@ export default defineBackground(() => {
         return;
       }
 
+      const totalItems = items.length;
       const cachedTranslationsMap = await getBatchCachedTranslations(
         items.map((item) => item.text),
         session.mode,
@@ -412,6 +416,7 @@ export default defineBackground(() => {
             session.mode,
             [{ id: item.id, text: cached }],
             translatedCount,
+            totalItems,
             true
           );
         } else {
@@ -431,6 +436,7 @@ export default defineBackground(() => {
           const errorState: TabState = {
             status: 'translated',
             translatedCount,
+            totalItems,
             mode: session.mode,
             autoTranslate: true,
             errorMessage: getPartialProgressMessage(aiConfig.provider, failureMessage)
@@ -450,6 +456,7 @@ export default defineBackground(() => {
           session.mode,
           translations,
           translatedCount,
+          totalItems,
           true
         );
 
@@ -470,6 +477,7 @@ export default defineBackground(() => {
         [stateKey]: {
           status: 'translating',
           translatedCount,
+          totalItems,
           mode: session.mode,
           autoTranslate: true
         } satisfies TabState
@@ -517,7 +525,7 @@ export default defineBackground(() => {
     const stateKey = `tab_state:${tabId}`;
     autoTranslations.set(tabId, { mode, translatedCount: 0 });
     await chrome.storage.local.set({
-      [stateKey]: { status: 'translating', translatedCount: 0, mode, autoTranslate: true } satisfies TabState
+      [stateKey]: { status: 'translating', translatedCount: 0, totalItems: 0, mode, autoTranslate: true } satisfies TabState
     });
     await setContentAutoTranslate(tabId, true);
     await translateViewportOnce(tabId);
@@ -584,11 +592,17 @@ export default defineBackground(() => {
       }
 
       const items = extractResult.items || [];
+      const totalItems = items.length;
       if (items.length === 0) {
-        const successState: TabState = { status: 'translated', translatedCount: 0, mode };
+        const successState: TabState = { status: 'translated', translatedCount: 0, totalItems: 0, mode };
         await chrome.storage.local.set({ [stateKey]: successState });
         return;
       }
+
+      // Update state with totalItems so the UI can show progress
+      await chrome.storage.local.set({
+        [stateKey]: { status: 'translating', translatedCount: 0, totalItems, mode, autoTranslate: false } satisfies TabState
+      });
 
       const originalTexts = items.map((i) => i.text);
       const cachedTranslationsMap = await getBatchCachedTranslations(originalTexts, mode, aiConfig);
@@ -610,6 +624,7 @@ export default defineBackground(() => {
             mode,
             [{ id: item.id, text: cached }],
             translatedCount,
+            totalItems,
             false
           );
         } else {
@@ -647,7 +662,7 @@ export default defineBackground(() => {
             continue;
           }
 
-          translatedCount = await applyTranslatedItems(tabId, stateKey, mode, translations, translatedCount, false);
+          translatedCount = await applyTranslatedItems(tabId, stateKey, mode, translations, translatedCount, totalItems, false);
 
           const cacheEntries = chunk.flatMap((item) => {
             const matchedResult = translations.find((t) => t.id === item.id);
@@ -665,7 +680,7 @@ export default defineBackground(() => {
         throw new Error(firstFailureMessage || 'Translation failed. Please try again.');
       }
 
-      const finalState: TabState = { status: 'translated', translatedCount, mode, autoTranslate: false };
+      const finalState: TabState = { status: 'translated', translatedCount, totalItems, mode, autoTranslate: false };
       if (failedItems.length > 0 && (stoppedForProviderLimit || firstFailureMessage)) {
         finalState.errorMessage = getPartialProgressMessage(aiConfig.provider, firstFailureMessage);
       }

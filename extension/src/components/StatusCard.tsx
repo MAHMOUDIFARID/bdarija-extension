@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { Toggle } from './Toggle.js';
+import { ProgressBar } from './ProgressBar.js';
 import { TranslationStatus, TranslationMode, TranslationStyle } from '../lib/types.js';
 
 interface StatusCardProps {
@@ -9,6 +10,7 @@ interface StatusCardProps {
   setStyle: (style: TranslationStyle) => void;
   status: TranslationStatus;
   count?: number;
+  totalItems?: number;
   errorMessage?: string;
 }
 
@@ -19,6 +21,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
   setStyle,
   status,
   count,
+  totalItems,
   errorMessage
 }) => {
   const isTranslating = status === 'translating';
@@ -81,6 +84,12 @@ export const StatusCard: React.FC<StatusCardProps> = ({
             <div className="text-[11px] font-semibold text-white/80">{count ?? 0}</div>
           </div>
         </div>
+
+        {isTranslating && (
+          <div className="pt-1">
+            <ProgressBar translated={count ?? 0} total={totalItems ?? 0} />
+          </div>
+        )}
       </div>
 
       {/* Minimalist error callout - displayed only on failure */}

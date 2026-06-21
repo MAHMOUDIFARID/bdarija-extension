@@ -413,6 +413,7 @@ export default function App() {
             setStyle={handleStyleChange}
             status={tabState.status}
             count={tabState.translatedCount}
+            totalItems={tabState.totalItems}
             errorMessage={tabState.errorMessage}
           />
 
